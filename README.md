@@ -24,11 +24,10 @@ To use as a replacement for `encoding/json`, exchange
 ## Custom Colors
 
 The colors used for each type of token can be customized by creating a
-custom `Formatter`, changing its `XXXColor` fields and calling its
-`Format` method.  See
+custom `Formatter` and changing its `XXXColor` fields.  See
 [color.New](https://godoc.org/github.com/fatih/color#New) for creating
-custom color types and
-[jsoncolor.NewFormatter](https://godoc.org/github.com/nwidger/jsoncolor#NewFormatter)
+custom color values and the
+[GoDocs](https://godoc.org/github.com/nwidger/jsoncolor#pkg-variables)
 for the default colors.
 
 ``` go
@@ -42,15 +41,19 @@ import (
         "github.com/nwidger/jsoncolor"
 )
 
-// marshal v using stdlib
+// marshal v into src using encoding/json
 src, err := json.Marshal(v)
 if err != nil {
         log.Fatal(err)
 }
 
 // create custom formatter,
-// set custom colors
 f := jsoncolor.NewFormatter()
+
+// set custom colors
+f.SpaceColor = color.New(color.FgRed, color.Bold)
+f.CommaColor = color.New(color.FgWhite, color.Bold)
+f.ColonColor = color.New(color.FgBlue)
 f.ObjectColor = color.New(color.FgBlue, color.Bold)
 f.ArrayColor = color.New(color.FgWhite)
 f.FieldColor = color.New(color.FgGreen)
@@ -67,5 +70,6 @@ if err != nil {
         log.Fatal(err)
 }
 
+// print colorized output to stdout
 fmt.Println(dst.String())
 ```

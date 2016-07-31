@@ -1,3 +1,5 @@
+// Package jsoncolor is a replacement for encoding/json's
+// MarshalIndent producing colorized output.
 package jsoncolor
 
 import (
@@ -10,19 +12,13 @@ import (
 	"github.com/fatih/color"
 )
 
-func Marshal(v interface{}) ([]byte, error) {
-	f := NewFormatter()
-	return marshal(v, f)
-}
-
+// MarshalIndent is like encoding/json's MarshalIndent but colorizes
+// the output.
 func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	f := NewFormatter()
 	f.Prefix = prefix
 	f.Indent = indent
-	return marshal(v, f)
-}
 
-func marshal(v interface{}, f *Formatter) ([]byte, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
@@ -88,20 +84,48 @@ func (f *frame) isEmpty() bool {
 }
 
 var (
+	// Color for whitespace characters.  DisableColor is called on
+	// DefaultSpaceColor in a package init function so that
+	// whitespace characters are not colored by default.
+	DefaultSpaceColor = color.New()
+	// Color for comma character ',' delimiting object and array
+	// fields.
+	DefaultCommaColor = color.New(color.FgWhite)
+	// Color for colon characters ':' separating object field
+	// names and values.
+	DefaultColonColor = color.New(color.FgWhite)
+	// Color for object delimiter characters '{' and '}'.
 	DefaultObjectColor = color.New(color.FgWhite, color.Bold)
-	DefaultArrayColor  = color.New(color.FgWhite, color.Bold)
-	DefaultFieldColor  = color.New(color.FgBlue, color.Bold)
+	// Color for array delimiter characters '[' and ']'.
+	DefaultArrayColor = color.New(color.FgWhite, color.Bold)
+	// Color for object field names.
+	DefaultFieldColor = color.New(color.FgBlue, color.Bold)
+	// Color for string values.
 	DefaultStringColor = color.New(color.FgGreen)
-	DefaultTrueColor   = color.New(color.FgWhite)
-	DefaultFalseColor  = color.New(color.FgWhite)
+	// Color for 'true' boolean values.
+	DefaultTrueColor = color.New(color.FgWhite)
+	// Color for 'false' boolean values.
+	DefaultFalseColor = color.New(color.FgWhite)
+	// Color for number values.
 	DefaultNumberColor = color.New(color.FgWhite)
-	DefaultNullColor   = color.New(color.FgBlack, color.Bold)
+	// Color for null values.
+	DefaultNullColor = color.New(color.FgBlack, color.Bold)
 
+	// By default, no prefix is used.
 	DefaultPrefix = ""
+	// By default, an indentation of two spaces is used.
 	DefaultIndent = "  "
 )
 
+func init() {
+	DefaultSpaceColor.DisableColor()
+}
+
+// Formatter colorizes buffers containing JSON.
 type Formatter struct {
+	SpaceColor  *color.Color
+	CommaColor  *color.Color
+	ColonColor  *color.Color
 	ObjectColor *color.Color
 	ArrayColor  *color.Color
 	FieldColor  *color.Color
@@ -115,8 +139,12 @@ type Formatter struct {
 	Indent string
 }
 
+// NewFormatter returns a new formatter.
 func NewFormatter() *Formatter {
 	return &Formatter{
+		SpaceColor:  DefaultSpaceColor,
+		CommaColor:  DefaultCommaColor,
+		ColonColor:  DefaultColonColor,
 		ObjectColor: DefaultObjectColor,
 		ArrayColor:  DefaultArrayColor,
 		FieldColor:  DefaultFieldColor,
@@ -130,6 +158,7 @@ func NewFormatter() *Formatter {
 	}
 }
 
+// Format appends to dst a colorized form of the JSON-encoded src.
 func (f *Formatter) Format(dst *bytes.Buffer, src []byte) error {
 	return newFormatterState(f, dst).format(dst, src)
 }
@@ -138,7 +167,11 @@ type formatterState struct {
 	indent string
 	frames []*frame
 
-	printDelim  func(json.Delim)
+	printSpace  func(string)
+	printComma  func()
+	printColon  func()
+	printObject func(json.Delim)
+	printArray  func(json.Delim)
 	printField  func(k string) error
 	printString func(s string) error
 	printBool   func(b bool)
@@ -148,6 +181,9 @@ type formatterState struct {
 }
 
 func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
+	sprintfSpace := f.SpaceColor.SprintfFunc()
+	sprintfComma := f.CommaColor.SprintfFunc()
+	sprintfColon := f.ColonColor.SprintfFunc()
 	sprintfObject := f.ObjectColor.SprintfFunc()
 	sprintfArray := f.ArrayColor.SprintfFunc()
 	sprintfField := f.FieldColor.SprintfFunc()
@@ -162,19 +198,27 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 		frames: []*frame{
 			{},
 		},
-		printDelim: func(t json.Delim) {
-			if t == json.Delim('{') || t == json.Delim('}') {
-				fmt.Fprint(dst, sprintfObject("%v", t))
-			} else {
-				fmt.Fprint(dst, sprintfArray("%v", t))
-			}
+		printSpace: func(s string) {
+			fmt.Fprint(dst, sprintfSpace(s))
+		},
+		printComma: func() {
+			fmt.Fprint(dst, sprintfComma(","))
+		},
+		printColon: func() {
+			fmt.Fprint(dst, sprintfColon(":"))
+		},
+		printObject: func(t json.Delim) {
+			fmt.Fprint(dst, sprintfObject(t.String()))
+		},
+		printArray: func(t json.Delim) {
+			fmt.Fprint(dst, sprintfArray(t.String()))
 		},
 		printField: func(k string) error {
 			sbuf, err := json.Marshal(&k)
 			if err != nil {
 				return err
 			}
-			fmt.Fprint(dst, sprintfField("%v", string(sbuf)))
+			fmt.Fprint(dst, sprintfField(string(sbuf)))
 			return nil
 		},
 		printString: func(s string) error {
@@ -182,7 +226,7 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 			if err != nil {
 				return err
 			}
-			fmt.Fprint(dst, sprintfString("%v", string(sbuf)))
+			fmt.Fprint(dst, sprintfString(string(sbuf)))
 			return nil
 		},
 		printBool: func(b bool) {
@@ -196,7 +240,7 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 			fmt.Fprint(dst, sprintfNumber("%v", n))
 		},
 		printNull: func() {
-			fmt.Fprint(dst, sprintfNull("%v", "null"))
+			fmt.Fprint(dst, sprintfNull("null"))
 		},
 	}
 
@@ -210,7 +254,7 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 			if len(fs.indent) < ilen {
 				fs.indent = strings.Repeat(f.Indent, indent)
 			}
-			fmt.Fprint(dst, fs.indent[:ilen])
+			fmt.Fprint(dst, sprintfSpace(fs.indent[:ilen]))
 		}
 	}
 
@@ -240,7 +284,11 @@ func (fs *formatterState) leaveFrame() *frame {
 func (fs *formatterState) formatToken(t json.Token) error {
 	switch x := t.(type) {
 	case json.Delim:
-		fs.printDelim(x)
+		if x == json.Delim('{') || x == json.Delim('}') {
+			fs.printObject(x)
+		} else {
+			fs.printArray(x)
+		}
 	case json.Number:
 		fs.printNumber(x)
 	case string:
@@ -273,10 +321,8 @@ func (fs *formatterState) format(dst *bytes.Buffer, src []byte) error {
 			return err
 		}
 
-		end := "\n"
-		if frame.inArrayOrObject() && dec.More() {
-			end = ",\n"
-		}
+		more := dec.More()
+		printComma := frame.inArrayOrObject() && more
 
 		if x, ok := t.(json.Delim); ok {
 			if x == json.Delim('{') || x == json.Delim('[') {
@@ -286,11 +332,10 @@ func (fs *formatterState) format(dst *bytes.Buffer, src []byte) error {
 					fs.printIndent()
 				}
 				err = fs.formatToken(x)
-				more := dec.More()
 				if more {
-					fmt.Fprint(dst, "\n")
+					fs.printSpace("\n")
 				}
-				frame = fs.enterFrame(x, !dec.More())
+				frame = fs.enterFrame(x, !more)
 			} else {
 				empty := frame.isEmpty()
 				frame = fs.leaveFrame()
@@ -298,22 +343,30 @@ func (fs *formatterState) format(dst *bytes.Buffer, src []byte) error {
 					fs.printIndent()
 				}
 				err = fs.formatToken(x)
-				fmt.Fprint(dst, end)
+				if printComma {
+					fs.printComma()
+				}
+				fs.printSpace("\n")
 			}
 		} else {
 			printIndent := frame.inArray()
 			if _, ok := t.(string); ok {
 				printIndent = !frame.inObject() || frame.inField()
-				if frame.inField() {
-					end = ": "
-				}
 			}
 
 			if printIndent {
 				fs.printIndent()
 			}
 			err = fs.formatToken(t)
-			fmt.Fprint(dst, end)
+			if frame.inField() {
+				fs.printColon()
+				fs.printSpace(" ")
+			} else {
+				if printComma {
+					fs.printComma()
+				}
+				fs.printSpace("\n")
+			}
 		}
 
 		if frame.inObject() {
