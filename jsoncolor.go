@@ -87,6 +87,20 @@ func (f *frame) isEmpty() bool {
 	return (f.object || f.array) && f.empty
 }
 
+var (
+	DefaultObjectColor = color.New(color.FgWhite, color.Bold)
+	DefaultArrayColor  = color.New(color.FgWhite, color.Bold)
+	DefaultFieldColor  = color.New(color.FgBlue, color.Bold)
+	DefaultStringColor = color.New(color.FgGreen)
+	DefaultTrueColor   = color.New(color.FgWhite)
+	DefaultFalseColor  = color.New(color.FgWhite)
+	DefaultNumberColor = color.New(color.FgWhite)
+	DefaultNullColor   = color.New(color.FgBlack, color.Bold)
+
+	DefaultPrefix = ""
+	DefaultIndent = "  "
+)
+
 type Formatter struct {
 	ObjectColor *color.Color
 	ArrayColor  *color.Color
@@ -103,16 +117,16 @@ type Formatter struct {
 
 func NewFormatter() *Formatter {
 	return &Formatter{
-		ObjectColor: color.New(color.FgWhite, color.Bold),
-		ArrayColor:  color.New(color.FgWhite, color.Bold),
-		FieldColor:  color.New(color.FgBlue, color.Bold),
-		StringColor: color.New(color.FgGreen),
-		TrueColor:   color.New(color.FgWhite),
-		FalseColor:  color.New(color.FgWhite),
-		NumberColor: color.New(color.FgWhite),
-		NullColor:   color.New(color.FgBlack, color.Bold),
-		Prefix:      "",
-		Indent:      "  ",
+		ObjectColor: DefaultObjectColor,
+		ArrayColor:  DefaultArrayColor,
+		FieldColor:  DefaultFieldColor,
+		StringColor: DefaultStringColor,
+		TrueColor:   DefaultTrueColor,
+		FalseColor:  DefaultFalseColor,
+		NumberColor: DefaultNumberColor,
+		NullColor:   DefaultNullColor,
+		Prefix:      DefaultPrefix,
+		Indent:      DefaultIndent,
 	}
 }
 
