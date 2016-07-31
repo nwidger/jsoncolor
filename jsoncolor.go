@@ -84,32 +84,17 @@ func (f *frame) isEmpty() bool {
 }
 
 var (
-	// Color for whitespace characters.  DisableColor is called on
-	// DefaultSpaceColor in a package init function so that
-	// whitespace characters are not colored by default.
-	DefaultSpaceColor = color.New()
-	// Color for comma character ',' delimiting object and array
-	// fields.
-	DefaultCommaColor = color.New(color.FgWhite)
-	// Color for colon characters ':' separating object field
-	// names and values.
-	DefaultColonColor = color.New(color.FgWhite)
-	// Color for object delimiter characters '{' and '}'.
+	DefaultSpaceColor  = color.New()
+	DefaultCommaColor  = color.New(color.FgWhite)
+	DefaultColonColor  = color.New(color.FgWhite)
 	DefaultObjectColor = color.New(color.FgWhite, color.Bold)
-	// Color for array delimiter characters '[' and ']'.
-	DefaultArrayColor = color.New(color.FgWhite, color.Bold)
-	// Color for object field names.
-	DefaultFieldColor = color.New(color.FgBlue, color.Bold)
-	// Color for string values.
+	DefaultArrayColor  = color.New(color.FgWhite, color.Bold)
+	DefaultFieldColor  = color.New(color.FgBlue, color.Bold)
 	DefaultStringColor = color.New(color.FgGreen)
-	// Color for 'true' boolean values.
-	DefaultTrueColor = color.New(color.FgWhite)
-	// Color for 'false' boolean values.
-	DefaultFalseColor = color.New(color.FgWhite)
-	// Color for number values.
+	DefaultTrueColor   = color.New(color.FgWhite)
+	DefaultFalseColor  = color.New(color.FgWhite)
 	DefaultNumberColor = color.New(color.FgWhite)
-	// Color for null values.
-	DefaultNullColor = color.New(color.FgBlack, color.Bold)
+	DefaultNullColor   = color.New(color.FgBlack, color.Bold)
 
 	// By default, no prefix is used.
 	DefaultPrefix = ""
@@ -123,19 +108,37 @@ func init() {
 
 // Formatter colorizes buffers containing JSON.
 type Formatter struct {
-	SpaceColor  *color.Color
-	CommaColor  *color.Color
-	ColonColor  *color.Color
+	// Color for whitespace characters.  DisableColor is called on
+	// DefaultSpaceColor in a package init function so that
+	// whitespace characters are not colored by default.
+	SpaceColor *color.Color
+	// Color for comma character ',' delimiting object and array
+	// fields.
+	CommaColor *color.Color
+	// Color for colon character ':' separating object field names
+	// and values.
+	ColonColor *color.Color
+	// Color for object delimiter characters '{' and '}'.
 	ObjectColor *color.Color
-	ArrayColor  *color.Color
-	FieldColor  *color.Color
+	// Color for array delimiter characters '[' and ']'.
+	ArrayColor *color.Color
+	// Color for object field names.
+	FieldColor *color.Color
+	// Color for string values.
 	StringColor *color.Color
-	TrueColor   *color.Color
-	FalseColor  *color.Color
+	// Color for 'true' boolean values.
+	TrueColor *color.Color
+	// Color for 'false' boolean values.
+	FalseColor *color.Color
+	// Color for number values.
 	NumberColor *color.Color
-	NullColor   *color.Color
+	// Color for null values.
+	NullColor *color.Color
 
+	// Prefix is prepended before indentation to newlines.
 	Prefix string
+	// Indent is prepended to newlines one or more times according
+	// to indentation nesting.
 	Indent string
 }
 
