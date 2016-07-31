@@ -51,8 +51,14 @@ if err != nil {
 // create custom formatter,
 // set custom colors
 f := jsoncolor.NewFormatter()
-f.StringColor = color.New(color.FgBlue, color.Bold)
+f.ObjectColor = color.New(color.FgBlue, color.Bold)
+f.ArrayColor = color.New(color.FgWhite)
+f.FieldColor = color.New(color.FgGreen)
+f.StringColor = color.New(color.FgBlack, color.Bold)
+f.TrueColor = color.New(color.FgWhite, color.Bold)
+f.FalseColor = color.New(color.FgRed)
 f.NumberColor = color.New(color.FgWhite)
+f.NullColor = color.New(color.FgWhite, color.Bold)
 
 // colorized output is written to dst
 dst := &bytes.Buffer{}
