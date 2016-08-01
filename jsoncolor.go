@@ -87,13 +87,13 @@ var (
 	DefaultSpaceColor  = color.New()
 	DefaultCommaColor  = color.New(color.FgWhite)
 	DefaultColonColor  = color.New(color.FgWhite)
-	DefaultObjectColor = color.New(color.FgWhite, color.Bold)
-	DefaultArrayColor  = color.New(color.FgWhite, color.Bold)
+	DefaultObjectColor = color.New(color.Bold)
+	DefaultArrayColor  = color.New(color.Bold)
 	DefaultFieldColor  = color.New(color.FgBlue, color.Bold)
 	DefaultStringColor = color.New(color.FgGreen)
-	DefaultTrueColor   = color.New(color.FgWhite)
-	DefaultFalseColor  = color.New(color.FgWhite)
-	DefaultNumberColor = color.New(color.FgWhite)
+	DefaultTrueColor   = color.New()
+	DefaultFalseColor  = color.New()
+	DefaultNumberColor = color.New()
 	DefaultNullColor   = color.New(color.FgBlack, color.Bold)
 
 	// By default, no prefix is used.
@@ -102,15 +102,9 @@ var (
 	DefaultIndent = "  "
 )
 
-func init() {
-	DefaultSpaceColor.DisableColor()
-}
-
 // Formatter colorizes buffers containing JSON.
 type Formatter struct {
-	// Color for whitespace characters.  DisableColor is called on
-	// DefaultSpaceColor in a package init function so that
-	// whitespace characters are not colored by default.
+	// Color for whitespace characters.
 	SpaceColor *color.Color
 	// Color for comma character ',' delimiting object and array
 	// fields.
@@ -221,7 +215,7 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 			if err != nil {
 				return err
 			}
-			fmt.Fprint(dst, sprintfField(string(sbuf)))
+			fmt.Fprint(dst, sprintfField("%s", string(sbuf)))
 			return nil
 		},
 		printString: func(s string) error {
@@ -229,7 +223,7 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 			if err != nil {
 				return err
 			}
-			fmt.Fprint(dst, sprintfString(string(sbuf)))
+			fmt.Fprint(dst, sprintfString("%s", string(sbuf)))
 			return nil
 		},
 		printBool: func(b bool) {
