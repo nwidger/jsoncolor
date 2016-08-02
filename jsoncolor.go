@@ -85,8 +85,8 @@ func (f *frame) isEmpty() bool {
 
 var (
 	DefaultSpaceColor  = color.New()
-	DefaultCommaColor  = color.New(color.FgWhite)
-	DefaultColonColor  = color.New(color.FgWhite)
+	DefaultCommaColor  = color.New(color.Bold)
+	DefaultColonColor  = color.New(color.Bold)
 	DefaultObjectColor = color.New(color.Bold)
 	DefaultArrayColor  = color.New(color.Bold)
 	DefaultFieldColor  = color.New(color.FgBlue, color.Bold)
