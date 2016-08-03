@@ -12,9 +12,18 @@ import (
 	"github.com/fatih/color"
 )
 
+// Marshal is like encoding/json's Marshal but colorizes the output.
+func Marshal(v interface{}) ([]byte, error) {
+	return marshalIndent(v, "", "")
+}
+
 // MarshalIndent is like encoding/json's MarshalIndent but colorizes
 // the output.
 func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+	return marshalIndent(v, prefix, indent)
+}
+
+func marshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	f := NewFormatter()
 	f.Prefix = prefix
 	f.Indent = indent
@@ -161,8 +170,9 @@ func (f *Formatter) Format(dst *bytes.Buffer, src []byte) error {
 }
 
 type formatterState struct {
-	indent string
-	frames []*frame
+	compact bool
+	indent  string
+	frames  []*frame
 
 	printSpace  func(string)
 	printComma  func()
@@ -191,12 +201,10 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 	sprintfNull := f.NullColor.SprintfFunc()
 
 	fs := &formatterState{
-		indent: "",
+		compact: len(f.Prefix) == 0 && len(f.Indent) == 0,
+		indent:  "",
 		frames: []*frame{
 			{},
-		},
-		printSpace: func(s string) {
-			fmt.Fprint(dst, sprintfSpace(s))
 		},
 		printComma: func() {
 			fmt.Fprint(dst, sprintfComma(","))
@@ -241,7 +249,17 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 		},
 	}
 
+	fs.printSpace = func(s string) {
+		if fs.compact {
+			return
+		}
+		fmt.Fprint(dst, sprintfSpace(s))
+	}
+
 	fs.printIndent = func() {
+		if fs.compact {
+			return
+		}
 		if len(f.Prefix) > 0 {
 			fmt.Fprint(dst, f.Prefix)
 		}

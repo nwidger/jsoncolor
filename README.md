@@ -3,9 +3,9 @@ jsoncolor
 
 [![GoDoc](https://godoc.org/github.com/nwidger/jsoncolor?status.svg)](https://godoc.org/github.com/nwidger/jsoncolor)
 
-`jsoncolor` is a drop-in replacement for `encoding/json`'s
-`MarshalIndent` function which produces colorized output using fatih's
-[color](https://github.com/fatih/color) package.
+`jsoncolor` is a drop-in replacement for `encoding/json`'s `Marshal`
+and `MarshalIndent` functions which produce colorized output using
+fatih's [color](https://github.com/fatih/color) package.
 
 ## Installation
 
@@ -19,7 +19,8 @@ To use as a replacement for `encoding/json`, exchange
 
 `import "encoding/json"` with `import json "github.com/nwidger/jsoncolor"`.
 
-`json.MarshalIndent` will now produce colorized output.
+`json.Marshal` and `json.MarshalIndent` will now produce colorized
+output.
 
 ## Custom Colors
 
