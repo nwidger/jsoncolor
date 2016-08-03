@@ -343,7 +343,9 @@ func (fs *formatterState) format(dst *bytes.Buffer, src []byte) error {
 				if printComma {
 					fs.printComma()
 				}
-				fs.printSpace("\n")
+				if len(fs.frames) > 1 {
+					fs.printSpace("\n")
+				}
 			}
 		} else {
 			printIndent := frame.inArray()
@@ -364,7 +366,9 @@ func (fs *formatterState) format(dst *bytes.Buffer, src []byte) error {
 				if printComma {
 					fs.printComma()
 				}
-				fs.printSpace("\n")
+				if len(fs.frames) > 1 {
+					fs.printSpace("\n")
+				}
 			}
 		}
 
