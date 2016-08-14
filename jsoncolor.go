@@ -1,4 +1,4 @@
-// Package jsoncolor is a replacement for encoding/json's
+// Package jsoncolor is a replacement for encoding/json's Marshal and
 // MarshalIndent producing colorized output.
 package jsoncolor
 
@@ -93,17 +93,19 @@ func (f *frame) isEmpty() bool {
 }
 
 var (
-	DefaultSpaceColor  = color.New()
-	DefaultCommaColor  = color.New(color.Bold)
-	DefaultColonColor  = color.New(color.Bold)
-	DefaultObjectColor = color.New(color.Bold)
-	DefaultArrayColor  = color.New(color.Bold)
-	DefaultFieldColor  = color.New(color.FgBlue, color.Bold)
-	DefaultStringColor = color.New(color.FgGreen)
-	DefaultTrueColor   = color.New()
-	DefaultFalseColor  = color.New()
-	DefaultNumberColor = color.New()
-	DefaultNullColor   = color.New(color.FgBlack, color.Bold)
+	DefaultSpaceColor       = color.New()
+	DefaultCommaColor       = color.New(color.Bold)
+	DefaultColonColor       = color.New(color.Bold)
+	DefaultObjectColor      = color.New(color.Bold)
+	DefaultArrayColor       = color.New(color.Bold)
+	DefaultFieldQuoteColor  = color.New(color.FgBlue, color.Bold)
+	DefaultFieldColor       = color.New(color.FgBlue, color.Bold)
+	DefaultStringQuoteColor = color.New(color.FgGreen)
+	DefaultStringColor      = color.New(color.FgGreen)
+	DefaultTrueColor        = color.New()
+	DefaultFalseColor       = color.New()
+	DefaultNumberColor      = color.New()
+	DefaultNullColor        = color.New(color.FgBlack, color.Bold)
 
 	// By default, no prefix is used.
 	DefaultPrefix = ""
@@ -125,8 +127,12 @@ type Formatter struct {
 	ObjectColor *color.Color
 	// Color for array delimiter characters '[' and ']'.
 	ArrayColor *color.Color
+	// Color for quotes '" surrounding object field names.
+	FieldQuoteColor *color.Color
 	// Color for object field names.
 	FieldColor *color.Color
+	// Color for quotes '"' surrounding string values.
+	StringQuoteColor *color.Color
 	// Color for string values.
 	StringColor *color.Color
 	// Color for 'true' boolean values.
@@ -148,19 +154,21 @@ type Formatter struct {
 // NewFormatter returns a new formatter.
 func NewFormatter() *Formatter {
 	return &Formatter{
-		SpaceColor:  DefaultSpaceColor,
-		CommaColor:  DefaultCommaColor,
-		ColonColor:  DefaultColonColor,
-		ObjectColor: DefaultObjectColor,
-		ArrayColor:  DefaultArrayColor,
-		FieldColor:  DefaultFieldColor,
-		StringColor: DefaultStringColor,
-		TrueColor:   DefaultTrueColor,
-		FalseColor:  DefaultFalseColor,
-		NumberColor: DefaultNumberColor,
-		NullColor:   DefaultNullColor,
-		Prefix:      DefaultPrefix,
-		Indent:      DefaultIndent,
+		SpaceColor:       DefaultSpaceColor,
+		CommaColor:       DefaultCommaColor,
+		ColonColor:       DefaultColonColor,
+		ObjectColor:      DefaultObjectColor,
+		ArrayColor:       DefaultArrayColor,
+		FieldQuoteColor:  DefaultFieldQuoteColor,
+		FieldColor:       DefaultFieldColor,
+		StringQuoteColor: DefaultStringQuoteColor,
+		StringColor:      DefaultStringColor,
+		TrueColor:        DefaultTrueColor,
+		FalseColor:       DefaultFalseColor,
+		NumberColor:      DefaultNumberColor,
+		NullColor:        DefaultNullColor,
+		Prefix:           DefaultPrefix,
+		Indent:           DefaultIndent,
 	}
 }
 
@@ -193,7 +201,9 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 	sprintfColon := f.ColonColor.SprintfFunc()
 	sprintfObject := f.ObjectColor.SprintfFunc()
 	sprintfArray := f.ArrayColor.SprintfFunc()
+	sprintfFieldQuote := f.FieldQuoteColor.SprintfFunc()
 	sprintfField := f.FieldColor.SprintfFunc()
+	sprintfStringQuote := f.StringQuoteColor.SprintfFunc()
 	sprintfString := f.StringColor.SprintfFunc()
 	sprintfTrue := f.TrueColor.SprintfFunc()
 	sprintfFalse := f.FalseColor.SprintfFunc()
@@ -223,7 +233,9 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 			if err != nil {
 				return err
 			}
-			fmt.Fprint(dst, sprintfField("%s", string(sbuf)))
+			fmt.Fprint(dst, sprintfFieldQuote(`"`))
+			fmt.Fprint(dst, sprintfField("%s", string(sbuf[1:len(sbuf)-1])))
+			fmt.Fprint(dst, sprintfFieldQuote(`"`))
 			return nil
 		},
 		printString: func(s string) error {
@@ -231,7 +243,9 @@ func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
 			if err != nil {
 				return err
 			}
-			fmt.Fprint(dst, sprintfString("%s", string(sbuf)))
+			fmt.Fprint(dst, sprintfStringQuote(`"`))
+			fmt.Fprint(dst, sprintfString("%s", string(sbuf[1:len(sbuf)-1])))
+			fmt.Fprint(dst, sprintfStringQuote(`"`))
 			return nil
 		},
 		printBool: func(b bool) {
