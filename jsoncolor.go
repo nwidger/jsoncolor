@@ -92,6 +92,10 @@ func (f *frame) isEmpty() bool {
 	return (f.object || f.array) && f.empty
 }
 
+type SprintfFuncer interface {
+	SprintfFunc() func(format string, a ...interface{}) string
+}
+
 var (
 	DefaultSpaceColor       = color.New()
 	DefaultCommaColor       = color.New(color.Bold)
@@ -116,33 +120,33 @@ var (
 // Formatter colorizes buffers containing JSON.
 type Formatter struct {
 	// Color for whitespace characters.
-	SpaceColor *color.Color
+	SpaceColor SprintfFuncer
 	// Color for comma character ',' delimiting object and array
 	// fields.
-	CommaColor *color.Color
+	CommaColor SprintfFuncer
 	// Color for colon character ':' separating object field names
 	// and values.
-	ColonColor *color.Color
+	ColonColor SprintfFuncer
 	// Color for object delimiter characters '{' and '}'.
-	ObjectColor *color.Color
+	ObjectColor SprintfFuncer
 	// Color for array delimiter characters '[' and ']'.
-	ArrayColor *color.Color
+	ArrayColor SprintfFuncer
 	// Color for quotes '" surrounding object field names.
-	FieldQuoteColor *color.Color
+	FieldQuoteColor SprintfFuncer
 	// Color for object field names.
-	FieldColor *color.Color
+	FieldColor SprintfFuncer
 	// Color for quotes '"' surrounding string values.
-	StringQuoteColor *color.Color
+	StringQuoteColor SprintfFuncer
 	// Color for string values.
-	StringColor *color.Color
+	StringColor SprintfFuncer
 	// Color for 'true' boolean values.
-	TrueColor *color.Color
+	TrueColor SprintfFuncer
 	// Color for 'false' boolean values.
-	FalseColor *color.Color
+	FalseColor SprintfFuncer
 	// Color for number values.
-	NumberColor *color.Color
+	NumberColor SprintfFuncer
 	// Color for null values.
-	NullColor *color.Color
+	NullColor SprintfFuncer
 
 	// Prefix is prepended before indentation to newlines.
 	Prefix string
