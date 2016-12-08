@@ -177,7 +177,7 @@ func NewFormatter() *Formatter {
 }
 
 // Format appends to dst a colorized form of the JSON-encoded src.
-func (f *Formatter) Format(dst *bytes.Buffer, src []byte) error {
+func (f *Formatter) Format(dst io.Writer, src []byte) error {
 	return newFormatterState(f, dst).format(dst, src)
 }
 
@@ -199,7 +199,7 @@ type formatterState struct {
 	printIndent func()
 }
 
-func newFormatterState(f *Formatter, dst *bytes.Buffer) *formatterState {
+func newFormatterState(f *Formatter, dst io.Writer) *formatterState {
 	sprintfSpace := f.SpaceColor.SprintfFunc()
 	sprintfComma := f.CommaColor.SprintfFunc()
 	sprintfColon := f.ColonColor.SprintfFunc()
@@ -339,7 +339,7 @@ func (fs *formatterState) formatToken(t json.Token) error {
 	return nil
 }
 
-func (fs *formatterState) format(dst *bytes.Buffer, src []byte) error {
+func (fs *formatterState) format(dst io.Writer, src []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(src))
 	dec.UseNumber()
 
