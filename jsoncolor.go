@@ -153,6 +153,11 @@ type Formatter struct {
 	// Indent is prepended to newlines one or more times according
 	// to indentation nesting.
 	Indent string
+
+	// EscapeHTML specifies whether problematic HTML characters
+	// should be escaped inside JSON quoted strings.  See
+	// json.Encoder.SetEscapeHTML's comment for more details.
+	EscapeHTML bool
 }
 
 // NewFormatter returns a new formatter.
@@ -214,6 +219,21 @@ func newFormatterState(f *Formatter, dst io.Writer) *formatterState {
 	sprintfNumber := f.NumberColor.SprintfFunc()
 	sprintfNull := f.NullColor.SprintfFunc()
 
+	encodeString := func(s string) (string, error) {
+		buf := bytes.NewBuffer(make([]byte, 0, len(s)+3))
+		enc := json.NewEncoder(buf)
+		enc.SetEscapeHTML(f.EscapeHTML)
+		err := enc.Encode(&s)
+		if err != nil {
+			return "", err
+		}
+		sbuf := buf.Bytes()
+		if len(sbuf) < 3 {
+			return "", fmt.Errorf("cannot encode string, result too short")
+		}
+		return string(sbuf[1 : len(sbuf)-2]), nil
+	}
+
 	fs := &formatterState{
 		compact: len(f.Prefix) == 0 && len(f.Indent) == 0,
 		indent:  "",
@@ -233,22 +253,22 @@ func newFormatterState(f *Formatter, dst io.Writer) *formatterState {
 			fmt.Fprint(dst, sprintfArray(t.String()))
 		},
 		printField: func(k string) error {
-			sbuf, err := json.Marshal(&k)
+			encStr, err := encodeString(k)
 			if err != nil {
 				return err
 			}
 			fmt.Fprint(dst, sprintfFieldQuote(`"`))
-			fmt.Fprint(dst, sprintfField("%s", string(sbuf[1:len(sbuf)-1])))
+			fmt.Fprint(dst, sprintfField("%s", encStr))
 			fmt.Fprint(dst, sprintfFieldQuote(`"`))
 			return nil
 		},
 		printString: func(s string) error {
-			sbuf, err := json.Marshal(&s)
+			encStr, err := encodeString(s)
 			if err != nil {
 				return err
 			}
 			fmt.Fprint(dst, sprintfStringQuote(`"`))
-			fmt.Fprint(dst, sprintfString("%s", string(sbuf[1:len(sbuf)-1])))
+			fmt.Fprint(dst, sprintfString("%s", encStr))
 			fmt.Fprint(dst, sprintfStringQuote(`"`))
 			return nil
 		},
