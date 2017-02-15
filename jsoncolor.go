@@ -219,10 +219,22 @@ func newFormatterState(f *Formatter, dst io.Writer) *formatterState {
 	sprintfNumber := f.NumberColor.SprintfFunc()
 	sprintfNull := f.NullColor.SprintfFunc()
 
+	// json.Encoder.SetEscapeHTML was added in Go 1.7, we need to
+	// test to see if it exists
+	type setEscapeHTMLer interface {
+		SetEscapeHTML(bool)
+	}
+
 	encodeString := func(s string) (string, error) {
 		buf := bytes.NewBuffer(make([]byte, 0, len(s)+3))
 		enc := json.NewEncoder(buf)
-		enc.SetEscapeHTML(f.EscapeHTML)
+
+		var i interface{}
+		i = enc
+		if se, ok := i.(setEscapeHTMLer); ok {
+			se.SetEscapeHTML(f.EscapeHTML)
+		}
+
 		err := enc.Encode(&s)
 		if err != nil {
 			return "", err
