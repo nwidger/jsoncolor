@@ -59,7 +59,7 @@ func NewEncoder(w io.Writer) *Encoder {
 // Encode is like encoding/json's Encoder.Encode but writes a
 // colorized JSON encoding of v to the stream.
 func (enc *Encoder) Encode(v interface{}) error {
-	return enc.encode(v, false)
+	return enc.encode(v, true)
 }
 
 // SetIndent is like encoding/json's Encoder.SetIndent.
