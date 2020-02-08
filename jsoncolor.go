@@ -1,5 +1,5 @@
-// Package jsoncolor is a replacement for encoding/json's Marshal and
-// MarshalIndent producing colorized output.
+// Package jsoncolor is a replacement for encoding/json's Marshal,
+// MarshalIndent and Encoder which produce colorized output.
 package jsoncolor
 
 import (
@@ -14,32 +14,82 @@ import (
 
 // Marshal is like encoding/json's Marshal but colorizes the output.
 func Marshal(v interface{}) ([]byte, error) {
-	return marshalIndent(v, "", "")
+	return MarshalIndent(v, "", "")
 }
 
 // MarshalIndent is like encoding/json's MarshalIndent but colorizes
 // the output.
 func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
-	return marshalIndent(v, prefix, indent)
-}
-
-func marshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
-	f := NewFormatter()
-	f.Prefix = prefix
-	f.Indent = indent
-
 	b, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
 
 	buf := bytes.NewBuffer(make([]byte, 0, len(b)))
-	err = f.Format(buf, b)
+	enc := NewEncoder(buf)
+	enc.SetIndent(prefix, indent)
+
+	err = enc.encode(v, false)
 	if err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
+}
+
+// Encoder is like encoding/json's Encoder but colorizes the output
+// written to the stream.
+type Encoder struct {
+	w          io.Writer
+	escapeHTML bool
+
+	indentPrefix string
+	indentValue  string
+}
+
+// NewEncoder is like encoding/json's NewEncoder but returns an
+// encoder that writes colorized output to w.
+func NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{
+		w:          w,
+		escapeHTML: true,
+	}
+}
+
+// Encode is like encoding/json's Encoder.Encode but writes a
+// colorized JSON encoding of v to the stream.
+func (enc *Encoder) Encode(v interface{}) error {
+	return enc.encode(v, false)
+}
+
+// SetIndent is like encoding/json's Encoder.SetIndent.
+func (enc *Encoder) SetIndent(prefix, indent string) {
+	enc.indentPrefix = prefix
+	enc.indentValue = indent
+}
+
+// SetIndent is like encoding/json's Encoder.SetEscapeHTML.
+func (enc *Encoder) SetEscapeHTML(on bool) {
+	enc.escapeHTML = on
+}
+
+func (enc *Encoder) encode(v interface{}, terminateWithNewline bool) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	f := NewFormatter()
+	f.Prefix = enc.indentPrefix
+	f.Indent = enc.indentValue
+	f.EscapeHTML = enc.escapeHTML
+
+	err = f.format(enc.w, b, terminateWithNewline)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type frame struct {
@@ -183,7 +233,11 @@ func NewFormatter() *Formatter {
 
 // Format appends to dst a colorized form of the JSON-encoded src.
 func (f *Formatter) Format(dst io.Writer, src []byte) error {
-	return newFormatterState(f, dst).format(dst, src)
+	return newFormatterState(f, dst).format(dst, src, false)
+}
+
+func (f *Formatter) format(dst io.Writer, src []byte, terminateWithNewline bool) error {
+	return newFormatterState(f, dst).format(dst, src, terminateWithNewline)
 }
 
 type formatterState struct {
@@ -371,7 +425,7 @@ func (fs *formatterState) formatToken(t json.Token) error {
 	return nil
 }
 
-func (fs *formatterState) format(dst io.Writer, src []byte) error {
+func (fs *formatterState) format(dst io.Writer, src []byte, terminateWithNewline bool) error {
 	dec := json.NewDecoder(bytes.NewReader(src))
 	dec.UseNumber()
 
@@ -447,6 +501,10 @@ func (fs *formatterState) format(dst io.Writer, src []byte) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if terminateWithNewline {
+		fs.printSpace("\n")
 	}
 
 	return nil
