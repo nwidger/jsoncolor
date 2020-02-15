@@ -1,5 +1,6 @@
-// Package jsoncolor is a replacement for encoding/json's Marshal,
-// MarshalIndent and Encoder which produce colorized output.
+// Package jsoncolor is a drop-in replacement for encoding/json's
+// Marshal and MarshalIndent functions and Encoder type which produce
+// colorized output.
 package jsoncolor
 
 import (
@@ -12,24 +13,47 @@ import (
 	"github.com/fatih/color"
 )
 
-// Marshal is like encoding/json's Marshal but colorizes the output.
+// DefaultFormatter is the Formatter used by Marshal, MarshalIndent
+// and NewEncoder.
+var DefaultFormatter = &Formatter{}
+
+// Marshal is like encoding/json's Marshal but colorizes the output
+// using DefaultFormatter.
 func Marshal(v interface{}) ([]byte, error) {
 	return MarshalIndent(v, "", "")
 }
 
 // MarshalIndent is like encoding/json's MarshalIndent but colorizes
-// the output.
+// the output using DefaultFormatter.
 func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
+	return MarshalIndentWithFormatter(v, prefix, indent, DefaultFormatter)
+}
 
-	buf := bytes.NewBuffer(make([]byte, 0, len(b)))
-	enc := NewEncoder(buf)
+// MarshalWithFormatter is like Marshal but using the Formatter f.
+// MarshalWithFormatter does not indent its output and thus ignores
+// the values of f's Prefix and Indent fields.  MarshalWithFormatter
+// replaces problematic characters and thus ignores the value of f's
+// EscapeHTML field.  This replacement can be disabled when using an
+// Encoder, by calling SetEscapeHTML(false).
+func MarshalWithFormatter(v interface{}, f *Formatter) ([]byte, error) {
+	return MarshalIndentWithFormatter(v, "", "", f)
+}
+
+// MarshalIndentWithFormatter is like MarshalIndent but using the
+// Formatter f.  MarshalIndentWithFormatter's prefix and indent
+// arguments override f's Prefix and Indent fields, which are
+// therefore ignored.  MarshalIndentWithFormatter replaces problematic
+// characters and therefore ignores f's EscapeHTML field.  This
+// replacement can be disabled when using an Encoder, by calling
+// SetEscapeHTML(false).
+func MarshalIndentWithFormatter(v interface{}, prefix, indent string, f *Formatter) ([]byte, error) {
+	buf := &bytes.Buffer{}
+
+	enc := NewEncoderWithFormatter(buf, f)
 	enc.SetIndent(prefix, indent)
+	enc.SetEscapeHTML(true)
 
-	err = enc.encode(v, false)
+	err := enc.encode(v, false)
 	if err != nil {
 		return nil, err
 	}
@@ -38,21 +62,31 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 }
 
 // Encoder is like encoding/json's Encoder but colorizes the output
-// written to the stream.
+// written to the stream using a Formatter.
 type Encoder struct {
-	w          io.Writer
-	escapeHTML bool
-
-	indentPrefix string
-	indentValue  string
+	w io.Writer
+	f *Formatter
 }
 
 // NewEncoder is like encoding/json's NewEncoder but returns an
-// encoder that writes colorized output to w.
+// encoder that writes colorized output to w using DefaultFormatter.
 func NewEncoder(w io.Writer) *Encoder {
+	return NewEncoderWithFormatter(w, DefaultFormatter)
+}
+
+// NewEncoderFormatter is like NewEncoder but using the Formatter f.
+// Note that the value of f's EscapeHTML field is ignored, callers
+// wishing to disable the default behavior of escaping HTML should
+// call SetEscapeHTML(false) after creating the encoder.
+func NewEncoderWithFormatter(w io.Writer, f *Formatter) *Encoder {
+	if f == nil {
+		panic("jsoncolor: nil formatter")
+	}
+	f = f.clone()
+	f.setEscapeHTML(true)
 	return &Encoder{
-		w:          w,
-		escapeHTML: true,
+		w: w,
+		f: f,
 	}
 }
 
@@ -64,13 +98,12 @@ func (enc *Encoder) Encode(v interface{}) error {
 
 // SetIndent is like encoding/json's Encoder.SetIndent.
 func (enc *Encoder) SetIndent(prefix, indent string) {
-	enc.indentPrefix = prefix
-	enc.indentValue = indent
+	enc.f.setIndent(prefix, indent)
 }
 
 // SetIndent is like encoding/json's Encoder.SetEscapeHTML.
 func (enc *Encoder) SetEscapeHTML(on bool) {
-	enc.escapeHTML = on
+	enc.f.setEscapeHTML(on)
 }
 
 func (enc *Encoder) encode(v interface{}, terminateWithNewline bool) error {
@@ -79,12 +112,7 @@ func (enc *Encoder) encode(v interface{}, terminateWithNewline bool) error {
 		return err
 	}
 
-	f := NewFormatter()
-	f.Prefix = enc.indentPrefix
-	f.Indent = enc.indentValue
-	f.EscapeHTML = enc.escapeHTML
-
-	err = f.format(enc.w, b, terminateWithNewline)
+	err = enc.f.format(enc.w, b, terminateWithNewline)
 	if err != nil {
 		return err
 	}
@@ -142,24 +170,51 @@ func (f *frame) isEmpty() bool {
 	return (f.object || f.array) && f.empty
 }
 
+// SprintfFuncer is implemented by any value that has a SprintfFunc
+// method.
 type SprintfFuncer interface {
+	// SprintfFunc returns a new function that returns colorized
+	// strings for the given arguments with fmt.Sprintf().
 	SprintfFunc() func(format string, a ...interface{}) string
 }
 
 var (
-	DefaultSpaceColor       = color.New()
-	DefaultCommaColor       = color.New(color.Bold)
-	DefaultColonColor       = color.New(color.Bold)
-	DefaultObjectColor      = color.New(color.Bold)
-	DefaultArrayColor       = color.New(color.Bold)
-	DefaultFieldQuoteColor  = color.New(color.FgBlue, color.Bold)
-	DefaultFieldColor       = color.New(color.FgBlue, color.Bold)
+	// DefaultSpaceColor is the default color for whitespace
+	// characters.
+	DefaultSpaceColor = color.New()
+	// DefaultCommaColor is the default color for the comma
+	// character ',' delimiting object and array fields.
+	DefaultCommaColor = color.New(color.Bold)
+	// DefaultColonColor is the default color the colon character
+	// ':' separating object field names and values.
+	DefaultColonColor = color.New(color.Bold)
+	// DefaultObjectColor is the default color for the object
+	// delimiter characters '{' and '}'.
+	DefaultObjectColor = color.New(color.Bold)
+	// DefaultArrayColor is the default color for the array
+	// delimiter characters '[' and ']'.
+	DefaultArrayColor = color.New(color.Bold)
+	// DefaultFieldQuoteColor is the default color for quotes '"'
+	// surrounding object field names.
+	DefaultFieldQuoteColor = color.New(color.FgBlue, color.Bold)
+	// DefaultFieldColor is the default color for object field
+	// names.
+	DefaultFieldColor = color.New(color.FgBlue, color.Bold)
+	// DefaultStringQuoteColor is the default color for quotes '"'
+	// surrounding string values.
 	DefaultStringQuoteColor = color.New(color.FgGreen)
-	DefaultStringColor      = color.New(color.FgGreen)
-	DefaultTrueColor        = color.New()
-	DefaultFalseColor       = color.New()
-	DefaultNumberColor      = color.New()
-	DefaultNullColor        = color.New(color.FgBlack, color.Bold)
+	// DefaultStringColor is the default color for string values.
+	DefaultStringColor = color.New(color.FgGreen)
+	// DefaultTrueColor is the default color for 'true' boolean
+	// values.
+	DefaultTrueColor = color.New()
+	// DefaultFalseColor is the default color for 'false' boolean
+	// values.
+	DefaultFalseColor = color.New()
+	// DefaultNumberColor is the default color for number values.
+	DefaultNumberColor = color.New()
+	// DefaultNullColor is the default color for null values.
+	DefaultNullColor = color.New(color.FgBlack, color.Bold)
 
 	// By default, no prefix is used.
 	DefaultPrefix = ""
@@ -169,33 +224,43 @@ var (
 
 // Formatter colorizes buffers containing JSON.
 type Formatter struct {
-	// Color for whitespace characters.
+	// Color for whitespace characters.  If nil, DefaultSpaceColor
+	// is used.
 	SpaceColor SprintfFuncer
-	// Color for comma character ',' delimiting object and array
-	// fields.
+	// Color for the comma character ',' delimiting object and
+	// array fields.  If nil, DefaultCommaColor is used.
 	CommaColor SprintfFuncer
-	// Color for colon character ':' separating object field names
-	// and values.
+	// Color for the colon character ':' separating object field
+	// names and values.  If nil, DefaultColonColor is used.
 	ColonColor SprintfFuncer
-	// Color for object delimiter characters '{' and '}'.
+	// Color for object delimiter characters '{' and '}'.  If nil,
+	// DefaultObjectColor is used.
 	ObjectColor SprintfFuncer
-	// Color for array delimiter characters '[' and ']'.
+	// Color for array delimiter characters '[' and ']'.  If nil,
+	// DefaultArrayColor is used.
 	ArrayColor SprintfFuncer
-	// Color for quotes '" surrounding object field names.
+	// Color for quotes '"' surrounding object field names.  If
+	// nil, DefaultFieldQuoteColor is used.
 	FieldQuoteColor SprintfFuncer
-	// Color for object field names.
+	// Color for object field names.  If nil, DefaultFieldColor is
+	// used.
 	FieldColor SprintfFuncer
-	// Color for quotes '"' surrounding string values.
+	// Color for quotes '"' surrounding string values.  If nil,
+	// DefaultStringQuoteColor is used.
 	StringQuoteColor SprintfFuncer
-	// Color for string values.
+	// Color for string values.  If nil, DefaultStringColor is
+	// used.
 	StringColor SprintfFuncer
-	// Color for 'true' boolean values.
+	// Color for 'true' boolean values.  If nil, DefaultTrueColor
+	// is used.
 	TrueColor SprintfFuncer
-	// Color for 'false' boolean values.
+	// Color for 'false' boolean values.  If nil,
+	// DefaultFalseColor is used.
 	FalseColor SprintfFuncer
-	// Color for number values.
+	// Color for number values.  If nil, DefaultNumberColor is
+	// used.
 	NumberColor SprintfFuncer
-	// Color for null values.
+	// Color for null values.  If nil, DefaultNullColor is used.
 	NullColor SprintfFuncer
 
 	// Prefix is prepended before indentation to newlines.
@@ -212,23 +277,22 @@ type Formatter struct {
 
 // NewFormatter returns a new formatter.
 func NewFormatter() *Formatter {
-	return &Formatter{
-		SpaceColor:       DefaultSpaceColor,
-		CommaColor:       DefaultCommaColor,
-		ColonColor:       DefaultColonColor,
-		ObjectColor:      DefaultObjectColor,
-		ArrayColor:       DefaultArrayColor,
-		FieldQuoteColor:  DefaultFieldQuoteColor,
-		FieldColor:       DefaultFieldColor,
-		StringQuoteColor: DefaultStringQuoteColor,
-		StringColor:      DefaultStringColor,
-		TrueColor:        DefaultTrueColor,
-		FalseColor:       DefaultFalseColor,
-		NumberColor:      DefaultNumberColor,
-		NullColor:        DefaultNullColor,
-		Prefix:           DefaultPrefix,
-		Indent:           DefaultIndent,
-	}
+	return &Formatter{}
+}
+
+func (f *Formatter) clone() *Formatter {
+	var g Formatter
+	g = *f
+	return &g
+}
+
+func (f *Formatter) setIndent(prefix, indent string) {
+	f.Prefix = prefix
+	f.Indent = indent
+}
+
+func (f *Formatter) setEscapeHTML(on bool) {
+	f.EscapeHTML = on
 }
 
 // Format appends to dst a colorized form of the JSON-encoded src.
@@ -238,6 +302,97 @@ func (f *Formatter) Format(dst io.Writer, src []byte) error {
 
 func (f *Formatter) format(dst io.Writer, src []byte, terminateWithNewline bool) error {
 	return newFormatterState(f, dst).format(dst, src, terminateWithNewline)
+}
+
+func (f *Formatter) spaceColor() SprintfFuncer {
+	if f.SpaceColor != nil {
+		return f.SpaceColor
+	}
+	return DefaultSpaceColor
+}
+
+func (f *Formatter) commaColor() SprintfFuncer {
+	if f.CommaColor != nil {
+		return f.CommaColor
+	}
+	return DefaultCommaColor
+}
+
+func (f *Formatter) colonColor() SprintfFuncer {
+	if f.ColonColor != nil {
+		return f.ColonColor
+	}
+	return DefaultColonColor
+}
+
+func (f *Formatter) objectColor() SprintfFuncer {
+	if f.ObjectColor != nil {
+		return f.ObjectColor
+	}
+	return DefaultObjectColor
+}
+
+func (f *Formatter) arrayColor() SprintfFuncer {
+	if f.ArrayColor != nil {
+		return f.ArrayColor
+	}
+	return DefaultArrayColor
+}
+
+func (f *Formatter) fieldQuoteColor() SprintfFuncer {
+	if f.FieldQuoteColor != nil {
+		return f.FieldQuoteColor
+	}
+	return DefaultFieldQuoteColor
+}
+
+func (f *Formatter) fieldColor() SprintfFuncer {
+	if f.FieldColor != nil {
+		return f.FieldColor
+	}
+	return DefaultFieldColor
+}
+
+func (f *Formatter) stringQuoteColor() SprintfFuncer {
+	if f.StringQuoteColor != nil {
+		return f.StringQuoteColor
+	}
+	return DefaultStringQuoteColor
+}
+
+func (f *Formatter) stringColor() SprintfFuncer {
+	if f.StringColor != nil {
+		return f.StringColor
+	}
+	return DefaultStringColor
+}
+
+func (f *Formatter) trueColor() SprintfFuncer {
+	if f.TrueColor != nil {
+		return f.TrueColor
+	}
+	return DefaultTrueColor
+}
+
+func (f *Formatter) falseColor() SprintfFuncer {
+	if f.FalseColor != nil {
+		return f.FalseColor
+	}
+	return DefaultFalseColor
+}
+
+func (f *Formatter) numberColor() SprintfFuncer {
+	if f.NumberColor != nil {
+		return f.NumberColor
+	}
+	return DefaultNumberColor
+}
+
+func (f *Formatter) nullColor() SprintfFuncer {
+	if f.NullColor != nil {
+		return f.NullColor
+	}
+	return DefaultNullColor
 }
 
 type formatterState struct {
@@ -259,19 +414,19 @@ type formatterState struct {
 }
 
 func newFormatterState(f *Formatter, dst io.Writer) *formatterState {
-	sprintfSpace := f.SpaceColor.SprintfFunc()
-	sprintfComma := f.CommaColor.SprintfFunc()
-	sprintfColon := f.ColonColor.SprintfFunc()
-	sprintfObject := f.ObjectColor.SprintfFunc()
-	sprintfArray := f.ArrayColor.SprintfFunc()
-	sprintfFieldQuote := f.FieldQuoteColor.SprintfFunc()
-	sprintfField := f.FieldColor.SprintfFunc()
-	sprintfStringQuote := f.StringQuoteColor.SprintfFunc()
-	sprintfString := f.StringColor.SprintfFunc()
-	sprintfTrue := f.TrueColor.SprintfFunc()
-	sprintfFalse := f.FalseColor.SprintfFunc()
-	sprintfNumber := f.NumberColor.SprintfFunc()
-	sprintfNull := f.NullColor.SprintfFunc()
+	sprintfSpace := f.spaceColor().SprintfFunc()
+	sprintfComma := f.commaColor().SprintfFunc()
+	sprintfColon := f.colonColor().SprintfFunc()
+	sprintfObject := f.objectColor().SprintfFunc()
+	sprintfArray := f.arrayColor().SprintfFunc()
+	sprintfFieldQuote := f.fieldQuoteColor().SprintfFunc()
+	sprintfField := f.fieldColor().SprintfFunc()
+	sprintfStringQuote := f.stringQuoteColor().SprintfFunc()
+	sprintfString := f.stringColor().SprintfFunc()
+	sprintfTrue := f.trueColor().SprintfFunc()
+	sprintfFalse := f.falseColor().SprintfFunc()
+	sprintfNumber := f.numberColor().SprintfFunc()
+	sprintfNull := f.nullColor().SprintfFunc()
 
 	// json.Encoder.SetEscapeHTML was added in Go 1.7, we need to
 	// test to see if it exists
