@@ -400,7 +400,7 @@ type formatterState struct {
 	indent  string
 	frames  []*frame
 
-	printSpace  func(string)
+	printSpace  func(s string, force bool)
 	printComma  func()
 	printColon  func()
 	printObject func(json.Delim)
@@ -508,8 +508,8 @@ func newFormatterState(f *Formatter, dst io.Writer) *formatterState {
 		},
 	}
 
-	fs.printSpace = func(s string) {
-		if fs.compact {
+	fs.printSpace = func(s string, force bool) {
+		if fs.compact && !force {
 			return
 		}
 		fmt.Fprint(dst, sprintfSpace(s))
@@ -601,13 +601,13 @@ func (fs *formatterState) format(dst io.Writer, src []byte, terminateWithNewline
 		if x, ok := t.(json.Delim); ok {
 			if x == json.Delim('{') || x == json.Delim('[') {
 				if frame.inObject() {
-					fs.printSpace(" ")
+					fs.printSpace(" ", false)
 				} else {
 					fs.printIndent()
 				}
 				err = fs.formatToken(x)
 				if more {
-					fs.printSpace("\n")
+					fs.printSpace("\n", false)
 				}
 				frame = fs.enterFrame(x, !more)
 			} else {
@@ -621,7 +621,7 @@ func (fs *formatterState) format(dst io.Writer, src []byte, terminateWithNewline
 					fs.printComma()
 				}
 				if len(fs.frames) > 1 {
-					fs.printSpace("\n")
+					fs.printSpace("\n", false)
 				}
 			}
 		} else {
@@ -634,7 +634,7 @@ func (fs *formatterState) format(dst io.Writer, src []byte, terminateWithNewline
 				fs.printIndent()
 			}
 			if !frame.inField() {
-				fs.printSpace(" ")
+				fs.printSpace(" ", false)
 			}
 			err = fs.formatToken(t)
 			if frame.inField() {
@@ -644,7 +644,7 @@ func (fs *formatterState) format(dst io.Writer, src []byte, terminateWithNewline
 					fs.printComma()
 				}
 				if len(fs.frames) > 1 {
-					fs.printSpace("\n")
+					fs.printSpace("\n", false)
 				}
 			}
 		}
@@ -659,7 +659,7 @@ func (fs *formatterState) format(dst io.Writer, src []byte, terminateWithNewline
 	}
 
 	if terminateWithNewline {
-		fs.printSpace("\n")
+		fs.printSpace("\n", true)
 	}
 
 	return nil
