@@ -586,6 +586,13 @@ func (fs *formatterState) format(dst io.Writer, src []byte, terminateWithNewline
 
 	frame := fs.frame()
 
+	// this variable indicates whether the original input
+	// is a JSON object or JSON array. This allows us to
+	// correctly print JSON scalar values such as strings,
+	// numbers, `true`, `false` and `null`.
+
+	inputIsObjectOrArray := false
+
 	for {
 		t, err := dec.Token()
 		if err == io.EOF {
@@ -599,6 +606,7 @@ func (fs *formatterState) format(dst io.Writer, src []byte, terminateWithNewline
 		printComma := frame.inArrayOrObject() && more
 
 		if x, ok := t.(json.Delim); ok {
+			inputIsObjectOrArray = inputIsObjectOrArray && true
 			if x == json.Delim('{') || x == json.Delim('[') {
 				if frame.inObject() {
 					fs.printSpace(" ", false)
@@ -633,7 +641,7 @@ func (fs *formatterState) format(dst io.Writer, src []byte, terminateWithNewline
 			if printIndent {
 				fs.printIndent()
 			}
-			if !frame.inField() {
+			if !frame.inField() && inputIsObjectOrArray {
 				fs.printSpace(" ", false)
 			}
 			err = fs.formatToken(t)
