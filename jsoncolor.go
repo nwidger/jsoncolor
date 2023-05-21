@@ -465,7 +465,7 @@ func newFormatterState(f *Formatter, dst io.Writer) *formatterState {
 			fmt.Fprint(dst, sprintfComma(","))
 		},
 		printColon: func() {
-			fmt.Fprint(dst, sprintfColon(":"))
+			fmt.Fprint(dst, sprintfColon(": "))
 		},
 		printObject: func(t json.Delim) {
 			fmt.Fprint(dst, sprintfObject(t.String()))
